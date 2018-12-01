@@ -23,7 +23,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
   laser_ranges = laser_msg.ranges;
   laser_ranges_size = laser_ranges.size();
 
-  // The min and max sensor reading is found:
+  // The min and max sensor readings are found:
   float laser_ranges_min = 5.0f;
   float laser_ranges_max = 0.0f;
 
@@ -74,14 +74,14 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
   {
     // If any of the sensor readings are closer than 0.4 to an obstacle the robot is slowed down
     // It should never fully stop, as this makes it run into an infinite turning loop:
-    if (laser_ranges_min < 0.4)
+    if (laser_ranges_min < 0.5)
     {
       velocity_msg.linear.x = 0.01;
       wallDetected = true;
     }
-    else if (laser_ranges_min < 0.6)
+    else if (laser_ranges_min < 0.7)
     {
-      velocity_msg.linear.x = 0.05;
+      velocity_msg.linear.x = 0.10;
       if (wallDetected != true)
       {
         wallDetected = true;
@@ -97,14 +97,14 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
       }
     }
 
-    else if (laser_ranges_min < 0.8)
+    else if (laser_ranges_min < 0.9)
     {
       velocity_msg.linear.x = 0.15;
     }
 
     else
     {
-      velocity_msg.linear.x = 0.25;
+      velocity_msg.linear.x = 0.30;
     }
 
     // When the position of the wall has been found, the robot will follow the wall:
@@ -114,11 +114,15 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
       {
         if (laser_ranges[laser_ranges_size - 1] < 0.7)
         {
-          velocity_msg.angular.z = -0.5;
+          velocity_msg.angular.z = -0.2;
         }
         else
         {
-          velocity_msg.angular.z = 0.5;
+          velocity_msg.angular.z = 0.2;
+        }
+        if (laser_ranges[laser_ranges_size-1] > 1.0)
+        {
+          velocity_msg.linear.x = 0.05;
         }
       }
 
@@ -126,11 +130,15 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
       {
         if (laser_ranges[0] < 0.7)
         {
-          velocity_msg.angular.z = 0.25;
+          velocity_msg.angular.z = 0.2;
         }
         else
         {
-          velocity_msg.angular.z = -0.25;
+          velocity_msg.angular.z = -0.2;
+        }
+        if (laser_ranges[0] > 1.0)
+        {
+          velocity_msg.linear.x = 0.05;
         }
       }
     }
