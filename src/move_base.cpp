@@ -13,6 +13,10 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2/utils.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <time.h>
+#include <std_msgs/MultiArrayLayout.h>
+#include <std_msgs/MultiArrayDimension.h>
+#include <std_msgs/Float64MultiArray.h>
 
 
 using namespace std;
@@ -22,12 +26,9 @@ using namespace geometry_msgs;
 // The published is defined here as it's used in the scan_callback function:
 ros::Publisher cmd_vel;
 
-//struct for savning coordinates
-struct Vector2D
-{
-  float x;
-  float y;
-};
+//array for x and y coordinates
+double x_cord [4];
+double y_cord [4];
 
 
 
@@ -40,7 +41,8 @@ bool wallDetected = false;
 bool wallToTheLeft = false;
 bool cornerFound = false;
 int counter =0;
-Vector2D corners [4];
+
+clock_t  old_time=0;
 
 // Initialize the transform listener
 tf2_ros::Buffer tfBuffer;
@@ -185,7 +187,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     if (wallDetected == true && (laser_ranges_left > laser_ranges_center ||
       laser_ranges_right > laser_ranges_center))
       {
-        if(laser_ranges_center<0.5)
+        if(laser_ranges_center<0.6)
         {
           cornerFound = true;
         }
@@ -209,9 +211,11 @@ corner_saver();
 
 
 void corner_saver(){
+  if(clock()-old_time<20000000){return;}
+old_time= clock();
 
  geometry_msgs::TransformStamped transformStamped;
-
+ROS_INFO("TIME: %d",old_time);
  // trying to obtain coordinates, if it fails it will just send a warning and wait a second.
   try
   {
@@ -225,13 +229,12 @@ void corner_saver(){
 
   }
 
-  //adding coordinates in the struct
-  Vector2D tmp;
-  tmp.x = fabs(transformStamped.transform.translation.x);
-  tmp.y = fabs(transformStamped.transform.translation.y);
 
-  //assigning place in the coordinate
-  corners[counter]= tmp;
+  //adding coordinates in the arrays
+  x_cord[counter] = fabs(transformStamped.transform.translation.x);
+  y_cord[counter] = fabs(transformStamped.transform.translation.y);
+
+  //incementing to assign a place in the array
   counter++;
 }
 
@@ -240,12 +243,16 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "move_base");
 
+
   // Node handler
   ros::NodeHandle n;
   tf2_ros::TransformListener tfListener(tfBuffer);
+  old_time= clock();
 
   // Publisher
   cmd_vel = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 100);
+  ros::Publisher cleaning = n.advertise<std_msgs::Float64MultiArray>("/cleaning_points", 100);
+
 
   // Subscriber
   ros::Subscriber laser_scan = n.subscribe("/scan", 1000, scan_callback);
@@ -253,6 +260,19 @@ int main(int argc, char **argv)
   while (ros::ok())
   {
     ros::spinOnce();
+    if(counter>2)
+    {
+      std_msgs::Float64MultiArray tmp_array;
+      tmp_array.data.clear();
+      for(int i=0;i<=counter;i++){
+        tmp_array.data.push_back(x_cord[i]);
+        tmp_array.data.push_back(y_cord[i]);
+      }
+      cleaning.publish(tmp_array);
+      ros:: shutdown();
+    }
+
+
   }
   return 0;
 }
