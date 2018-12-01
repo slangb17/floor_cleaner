@@ -6,5 +6,5 @@ To-do:
 
 Bugs:
   
-	  The TurtleBot hits outgoing corners (/Odometry might be a viable solution to this).
+	The TurtleBot hits outgoing corners (/Odometry might be a viable solution to this).
 	Determine the correct position from the robot to the walls.
