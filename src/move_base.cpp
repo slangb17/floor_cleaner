@@ -157,6 +157,8 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     ROS_WARN("I FOUND A CORNER!");
     velocity_msg.linear.x = 0;
     velocity_msg.angular.z = 0;
+    //add corner to an array
+    //when four corners are found, publish coordinates
   }
 
   cmd_vel.publish(velocity_msg);
