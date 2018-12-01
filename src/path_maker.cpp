@@ -1,27 +1,7 @@
 #include "ros/ros.h"
-#include "geometry_msgs/Twist.h"
-#include "sensor_msgs/LaserScan.h"
-#include <geometry_msgs/PointStamped.h>
-#include <actionlib/client/simple_action_client.h>
-#include <actionlib/client/simple_client_goal_state.h>
-#include <move_base_msgs/MoveBaseAction.h>
-#include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
-#include <queue>
-#include <iostream>
-#include <interactive_markers/interactive_marker_server.h>
-#include <tf2_ros/transform_listener.h>
-#include <tf2/utils.h>
-#include <geometry_msgs/TransformStamped.h>
-#include <time.h>
 #include <std_msgs/MultiArrayLayout.h>
 #include <std_msgs/MultiArrayDimension.h>
 #include <std_msgs/Float64MultiArray.h>
-
-
-using namespace std;
-using namespace ros;
-using namespace geometry_msgs;
 
 
 //array for x and y coordinates

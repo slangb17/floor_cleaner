@@ -7,8 +7,13 @@ project(floor_cleaner)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED roscpp geometry_msgs   tf2
-tf2_ros std_msgs )
+find_package(catkin REQUIRED 
+  roscpp 
+  geometry_msgs   
+  tf2
+  tf2_ros 
+  std_msgs 
+  )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -144,6 +149,10 @@ add_executable(path_maker src/path_maker.cpp)
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(move_base
+   ${catkin_LIBRARIES}
+ )
+
+  target_link_libraries(path_maker
    ${catkin_LIBRARIES}
  )
 
