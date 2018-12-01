@@ -25,6 +25,7 @@ using namespace geometry_msgs;
 
 // The published is defined here as it's used in the scan_callback function:
 ros::Publisher cmd_vel;
+ros::Publisher cleaning
 
 //array for x and y coordinates
 double x_cord [4];
@@ -47,8 +48,7 @@ clock_t  old_time=0;
 // Initialize the transform listener
 tf2_ros::Buffer tfBuffer;
 
-
-
+//decalring the function
 void corner_saver();
 
 
@@ -202,8 +202,6 @@ corner_saver();
     cornerFound = false;
 //    velocity_msg.linear.x = 0;
 //    velocity_msg.angular.z = 0;
-    //add corner to an array
-    //when four corners are found, publish coordinates
   }
 
   cmd_vel.publish(velocity_msg);
@@ -211,6 +209,7 @@ corner_saver();
 
 
 void corner_saver(){
+  // checking time since last run, this is to secure the robot does not run this function multiple times in same corner
   if(clock()-old_time<20000000){return;}
 old_time= clock();
 
@@ -230,11 +229,11 @@ ROS_INFO("TIME: %d",old_time);
   }
 
 
-  //adding coordinates in the arrays
+  //adding coordinates in the x and y array
   x_cord[counter] = fabs(transformStamped.transform.translation.x);
   y_cord[counter] = fabs(transformStamped.transform.translation.y);
 
-  //incementing to assign a place in the array
+  //incrementing to assign a place in the array
   counter++;
 }
 
@@ -251,7 +250,7 @@ int main(int argc, char **argv)
 
   // Publisher
   cmd_vel = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 100);
-  ros::Publisher cleaning = n.advertise<std_msgs::Float64MultiArray>("/cleaning_points", 100);
+  cleaning = n.advertise<std_msgs::Float64MultiArray>("/cleaning_points", 100);
 
 
   // Subscriber
@@ -260,15 +259,25 @@ int main(int argc, char **argv)
   while (ros::ok())
   {
     ros::spinOnce();
+    //checks to see if conter if more than 2. If counter is 3, the robot has obtained 4 coordinatesets for 4 different corners.
     if(counter>2)
     {
+      //initializing an array of the type float64
       std_msgs::Float64MultiArray tmp_array;
+      //everything in the array is set to 0
       tmp_array.data.clear();
+
+      //counter to go throught the arrays
       for(int i=0;i<=counter;i++){
+        //using the push_back function to push first x than y to the array
         tmp_array.data.push_back(x_cord[i]);
         tmp_array.data.push_back(y_cord[i]);
       }
+      //publish the array
       cleaning.publish(tmp_array);
+      //sleep so the new node can secure the data sendt from this node before this node shutsdown
+      ros:: Duration(10).sleep();
+      //shutsdown node
       ros:: shutdown();
     }
 
