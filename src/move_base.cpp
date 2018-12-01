@@ -105,8 +105,8 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
   laser_ranges_left /= (laser_ranges_size / 3);
 
   // The sections are printed in the terminal:
-  ROS_INFO("Left: %f, center: %f, right: %f", laser_ranges_left,
-  laser_ranges_center, laser_ranges_right);
+  //ROS_INFO("Left: %f, center: %f, right: %f", laser_ranges_left,
+  //laser_ranges_center, laser_ranges_right);
 
   // The code inside the if-statement will only be run if a corner has NOT been found:
   if (cornerFound != true)
@@ -196,9 +196,8 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
 
     if (cornerFound == true)
     {
+      //ROS_WARN("I FOUND A CORNER: %d",counter);
       corner_saver();
-
-      ROS_WARN("I FOUND A CORNER: %d",counter);
       cornerFound = false;
       //    velocity_msg.linear.x = 0;
       //    velocity_msg.angular.z = 0;
@@ -214,7 +213,8 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     old_time= clock();
 
     geometry_msgs::TransformStamped transformStamped;
-    ROS_INFO("TIME: %d",old_time);
+    ROS_WARN("Corner Saved: %d", counter);
+    ROS_INFO("Time: %d",old_time);
     // trying to obtain coordinates, if it fails it will just send a warning and wait a second.
     try
     {
@@ -246,7 +246,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     // Node handler
     ros::NodeHandle n;
     tf2_ros::TransformListener tfListener(tfBuffer);
-    old_time= clock();
+    //old_time= clock();
 
     // Publisher
     cmd_vel = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 100);
