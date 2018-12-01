@@ -1,9 +1,35 @@
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
 #include "sensor_msgs/LaserScan.h"
+#include <geometry_msgs/PointStamped.h>
+#include <actionlib/client/simple_action_client.h>
+#include <actionlib/client/simple_client_goal_state.h>
+#include <move_base_msgs/MoveBaseAction.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <queue>
+#include <iostream>
+#include <interactive_markers/interactive_marker_server.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2/utils.h>
+#include <geometry_msgs/TransformStamped.h>
+
+
+using namespace std;
+using namespace ros;
+using namespace geometry_msgs;
 
 // The published is defined here as it's used in the scan_callback function:
 ros::Publisher cmd_vel;
+
+//struct for savning coordinates
+struct Vector2D
+{
+  float x;
+  float y;
+};
+
+
 
 // Variables used in scan_calback:
 sensor_msgs::LaserScan laser_msg;
@@ -13,6 +39,17 @@ unsigned int laser_ranges_size = 0;
 bool wallDetected = false;
 bool wallToTheLeft = false;
 bool cornerFound = false;
+int counter =0;
+Vector2D corners [4];
+
+// Initialize the transform listener
+tf2_ros::Buffer tfBuffer;
+
+
+
+void corner_saver();
+
+
 
 void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
 {
@@ -146,17 +183,23 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     // This is used to determine when a corner has been found:
     // The idea is to use this to initialize the goal marking process:
     if (wallDetected == true && (laser_ranges_left > laser_ranges_center ||
-                                 laser_ranges_right > laser_ranges_center))
-    {
-      //cornerFound = true;
+      laser_ranges_right > laser_ranges_center))
+      {
+        if(laser_ranges_center<0.5)
+        {
+          cornerFound = true;
+        }
+      }
     }
-  }
 
   if (cornerFound == true)
   {
-    ROS_WARN("I FOUND A CORNER!");
-    velocity_msg.linear.x = 0;
-    velocity_msg.angular.z = 0;
+corner_saver();
+
+    ROS_WARN("I FOUND A CORNER: %d",counter);
+    cornerFound = false;
+//    velocity_msg.linear.x = 0;
+//    velocity_msg.angular.z = 0;
     //add corner to an array
     //when four corners are found, publish coordinates
   }
@@ -164,12 +207,42 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
   cmd_vel.publish(velocity_msg);
 }
 
+
+void corner_saver(){
+
+ geometry_msgs::TransformStamped transformStamped;
+
+ // trying to obtain coordinates, if it fails it will just send a warning and wait a second.
+  try
+  {
+    transformStamped = tfBuffer.lookupTransform( "map","base_footprint",
+                                                ros::Time(0));
+  }
+  catch (tf2::TransformException &ex)
+  {
+    ROS_WARN("%s", ex.what());
+    ros::Duration(1.0).sleep();
+
+  }
+
+  //adding coordinates in the struct
+  Vector2D tmp;
+  tmp.x = fabs(transformStamped.transform.translation.x);
+  tmp.y = fabs(transformStamped.transform.translation.y);
+
+  //assigning place in the coordinate
+  corners[counter]= tmp;
+  counter++;
+}
+
+
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "move_base");
 
   // Node handler
   ros::NodeHandle n;
+  tf2_ros::TransformListener tfListener(tfBuffer);
 
   // Publisher
   cmd_vel = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 100);
