@@ -9,10 +9,14 @@ project(floor_cleaner)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED 
   roscpp 
+  interactive_markers 
+  visualization_msgs 
   geometry_msgs   
   tf2
   tf2_ros 
-  std_msgs 
+  std_msgs
+  move_base_msgs 
+  actionlib
   )
 
 ## System dependencies are found with CMake's conventions
