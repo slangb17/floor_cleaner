@@ -260,7 +260,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     {
       ros::spinOnce();
       //checks to see if conter if more than 2. If counter is 3, the robot has obtained 4 coordinatesets for 4 different corners.
-      if(counter>2)
+      if(counter>3)
       {
         //initializing an array of the type float64
         std_msgs::Float64MultiArray tmp_array;
@@ -268,7 +268,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
         tmp_array.data.clear();
 
         //counter to go throught the arrays
-        for(int i=0;i<=counter;i++){
+        for(int i=0;i<counter;i++){
           //using the push_back function to push first x than y to the array
           tmp_array.data.push_back(x_cord[i]);
           tmp_array.data.push_back(y_cord[i]);
