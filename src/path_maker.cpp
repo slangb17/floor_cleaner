@@ -5,6 +5,7 @@
 #include <math.h>
 #include <iostream>
 #include <string>
+#include <iterator>
 
 // Action
 
@@ -18,65 +19,133 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
-// Interactive Markers
-
-#include <interactive_markers/interactive_marker_server.h>
-#include <interactive_markers/menu_handler.h>
-
 // Transform System
 
 #include <tf/transform_broadcaster.h>
 #include <tf/tf.h>
 
-#define expectedArraySize 4
-
 using namespace std;
 using namespace visualization_msgs;
 
 //array for x and y coordinates
-double x_cord[expectedArraySize];
-double y_cord[expectedArraySize];
+vector<vector<double> > point_cords;
 
-//Interactive marker shit
-boost::shared_ptr<interactive_markers::InteractiveMarkerServer> server;
-interactive_markers::MenuHandler menu_handler;
-void makeButtonMarker(std::string frameId);
-void frameCallback(const ros::TimerEvent &);
-void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
+//Function for making vectors and arrays with points.
+vector<vector<double> > vector_point_maker(int, int);
+void send_markers(vector<vector<double> >); //Sets the markers on the map.
 
-//Functions
-void send_markers(); //Makes markers wherever the x and y cords are.
+ros::Publisher marker_pub;
+
+#pragma region Calleback function for getting points
 
 void points(const std_msgs::Float64MultiArray::ConstPtr &tmp_array)
 {
   int i = 0;
-  int x = 0;
-  int y = 0;
   // print all the remaining numbers
+  vector<double> tmp_vector;
   for (std::vector<double>::const_iterator it = tmp_array->data.begin(); it != tmp_array->data.end(); ++it)
   {
-    if (i % 2 == 1)
+    if (i > 1) //0 nothing, 1 nothing, 2 we push it into the vector, and clear the temp vector, last vector never gets pushed.
     {
-      y_cord[y] = *it;
-      y++;
+      point_cords.push_back(tmp_vector);
+      tmp_vector.clear();
+      i = 0;
     }
-    else
-    {
-      x_cord[x] = *it;
-      x++;
-    }
+    tmp_vector.push_back(*it);
     i++;
   }
+  point_cords.push_back(tmp_vector); //The last cordinate is never pushed, if this isnt here.
 
-  for (int i = 0; i < expectedArraySize; i++)
+  for (int i = 0; i < point_cords.size(); i++)
   {
-    ROS_INFO("X: %f Y: %f", x_cord[i], y_cord[i]);
+    vector<double> temp_vector = point_cords[i];
+    ROS_INFO("X: %f Y: %f", temp_vector[0], temp_vector[1]);
   }
 
-  makeButtonMarker("map");
+  vector<vector<double> > tmp_point = vector_point_maker(2, 1);
+  send_markers(tmp_point);
 
   return;
 }
+
+#pragma endregion
+#pragma region Vector Magic
+
+double vector_length(double x, double y) //finds the length of the vector between two points.
+{
+  return sqrt(pow(x, 2) + pow(y, 2));
+}
+
+vector<vector<double> > vector_point_maker(int vector_point_to, int vector_point_from)
+{
+  //Point 1 to 2, and Point 4 to 3.
+  float TBDia = 0.6;                    //Diameter of turtlebot is used to calculate the distance between points. Meters.
+  vector<vector<double> > return_vector; //The return vector, with vectors. (Its a variable array with vector cordinats inside)
+
+  vector<double> point_to = point_cords[vector_point_to];
+  vector<double> point_from = point_cords[vector_point_from];
+
+  double x = point_to[0] - point_from[0];
+  double y = point_to[1] - point_from[1];
+
+  double vector_len = vector_length(x, y);
+  int amount_of_spaces = (vector_len / TBDia) - 1;
+
+  double x_space_length = x / amount_of_spaces;
+  double y_space_length = y / amount_of_spaces;
+
+  for (int i = 0; i <= amount_of_spaces; i++)
+  {
+    vector<double> add_distance;
+    add_distance.push_back(point_from[0] + x_space_length * i);
+    add_distance.push_back(point_from[1] + y_space_length * i);
+    return_vector.push_back(add_distance);
+  }
+
+  return return_vector;
+}
+
+#pragma endregion
+#pragma region Markers
+
+void send_markers(vector<vector<double> > points) //Sets the markers on the map.
+{
+  ROS_WARN("Sending Markers");
+  int markers = points.size();
+  visualization_msgs::Marker marker;
+  marker.header.stamp = ros::Time::now();
+  marker.ns = "bus_stops";
+  marker.type = visualization_msgs::Marker::ARROW;
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.scale.x = 1.0;
+  marker.scale.y = 0.2;
+  marker.scale.z = 0.2;
+  marker.color.r = 0.0;
+  marker.color.g = 1.0;
+  marker.color.b = 0.0;
+  marker.color.a = 1.0;
+  marker.pose.orientation.x = 0;
+  marker.pose.orientation.y = 0.7071;
+  marker.pose.orientation.z = 0;
+  marker.pose.orientation.w = 0.7071;
+  marker.lifetime = ros::Duration();
+
+  visualization_msgs::MarkerArray marker_array;
+  for (int i = 0; i < markers; i++)
+  {
+    marker.header.frame_id = "map";
+    marker.id = i;
+    marker.pose.position.x = points[i][0];
+    marker.pose.position.y = points[i][1];
+    marker.pose.position.z = marker.scale.x;
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker_array.markers.push_back(marker);
+  }
+  marker_pub.publish(marker_array);
+}
+
+#pragma endregion
 
 int main(int argc, char **argv)
 {
@@ -88,101 +157,11 @@ int main(int argc, char **argv)
   // Subscriber
   ros::Subscriber cleaning = n.subscribe("/cleaning_points", 1, points);
 
-  // create a timer to update the published transforms
-  ros::Timer frame_timer = n.createTimer(ros::Duration(0.01), frameCallback);
-
-  server.reset(new interactive_markers::InteractiveMarkerServer("basic_controls", "", false));
+  marker_pub = n.advertise<visualization_msgs::MarkerArray>("busroute_markers", 1);
 
   while (ros::ok())
   {
     ros::spinOnce();
   }
   return 0;
-}
-
-//http://wiki.ros.org/rviz/Tutorials/Interactive%20Markers%3A%20Basic%20Controls Incase you feel frisky.
-
-void makeButtonMarker(std::string frameId)
-{
-
-  for (int i = 0; i < expectedArraySize; i++)
-  {
-    InteractiveMarker int_marker;
-    InteractiveMarkerControl control;
-    tf::Vector3 position = tf::Vector3(x_cord[i], y_cord[i], 2);
-    int_marker.header.frame_id = frameId;
-    tf::pointTFToMsg(position, int_marker.pose.position);
-    int_marker.scale = 1;
-
-    int_marker.name = (char)i;
-    int_marker.description = "Button\n(Left Click)";
-
-    control.interaction_mode = InteractiveMarkerControl::BUTTON;
-    control.name = "button_control";
-    Marker marker;
-
-    marker.type = Marker::ARROW;
-    marker.scale.x = int_marker.scale * 2;
-    marker.scale.y = int_marker.scale * 0.45;
-    marker.scale.z = int_marker.scale * 0.45;
-    marker.pose.orientation.x = 0;
-    marker.pose.orientation.y = 0.7071;
-    marker.pose.orientation.z = 0;
-    marker.pose.orientation.w = 0.7071;
-    marker.color.r = 0.5;
-    marker.color.g = 0.5;
-    marker.color.b = 0.5;
-    marker.color.a = 1.0;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.id = i;
-    control.markers.push_back(marker);
-    control.always_visible = true;
-    int_marker.controls.push_back(control);
-
-    server->insert(int_marker);
-    server->setCallback(int_marker.name, &processFeedback);
-  }
-
-  server->applyChanges();
-}
-
-void frameCallback(const ros::TimerEvent &)
-{
-  static uint32_t counter = 0;
-
-  static tf::TransformBroadcaster br;
-
-  tf::Transform t;
-
-  ros::Time time = ros::Time::now();
-
-  t.setOrigin(tf::Vector3(0.0, 0.0, sin(float(counter) / 140.0) * 2.0));
-  t.setRotation(tf::Quaternion(0.0, 0.0, 0.0, 1.0));
-  br.sendTransform(tf::StampedTransform(t, time, "base_link", "moving_frame"));
-
-  t.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
-  t.setRotation(tf::createQuaternionFromRPY(0.0, float(counter) / 140.0, 0.0));
-  br.sendTransform(tf::StampedTransform(t, time, "base_link", "rotating_frame"));
-
-  counter++;
-}
-
-void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback)
-{
-  std::ostringstream s;
-  s << "Feedback from marker '" << feedback->marker_name << "' "
-    << " / control '" << feedback->control_name << "'";
-
-  switch (feedback->event_type)
-  {
-  case visualization_msgs::InteractiveMarkerFeedback::BUTTON_CLICK:
-    ROS_INFO_STREAM(s.str() << ": button click"
-                            << ".");
-
-    int idNumber = (int)( feedback->marker_name )[0];
-    ROS_WARN("Id: %d", idNumber);
-
-    break;
-  }
-  server->applyChanges();
 }
