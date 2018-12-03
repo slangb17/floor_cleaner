@@ -85,6 +85,18 @@ private:
         side = 1;
       }
     }
+
+    //Checking to make sure, that we dont go over the array sizes.
+    if (A >= side1.size())
+    {
+      A = side1.size() - 1;
+    }
+    else if (B >= side2.size())
+    {
+      B = side2.size() - 1;
+    }
+
+    //
   }
 
 #pragma region Calleback function for getting points
@@ -120,7 +132,7 @@ private:
     tmpArray.insert(tmpArray.end(), side2.begin(), side2.end());
 
     send_markers(tmpArray);
-    _send_goal(side1[0]);
+    _send_goal(side2[0]);
 
     return;
   }
