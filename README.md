@@ -6,4 +6,7 @@ To-do:
 
 Bugs:
   
+	
+Nice to have:
+
 	The TurtleBot hits outgoing corners (/Odometry might be a viable solution to this).
