@@ -132,6 +132,7 @@ private:
     tmpArray.insert(tmpArray.end(), side2.begin(), side2.end());
 
     send_markers(tmpArray);
+    ros::Duration(10).sleep();
     _send_goal(side2[0]);
 
     return;
