@@ -40,14 +40,16 @@ private:
   vector<vector<double> > side1;
   vector<vector<double> > side2;
 
-  vector<vector<double> > finalArray;
+  int side = 2;
+  int A = 0;
+  int B = 0;
 
-  void _send_goal()
+  void _send_goal(vector< double > side)
   {
       move_base_msgs::MoveBaseGoal goal;
       goal.target_pose.header.frame_id = "map";
-      goal.target_pose.pose.position.x = side1[0][0];
-      goal.target_pose.pose.position.y = side1[0][1];
+      goal.target_pose.pose.position.x = side[0];
+      goal.target_pose.pose.position.y = side[1];
       goal.target_pose.pose.position.z = 0;
       goal.target_pose.pose.orientation.w = 1.0;
       client.sendGoal(goal, boost::bind(&Route::_target_reached_cb, this, _1, _2)  );
@@ -55,9 +57,47 @@ private:
 
   void _target_reached_cb(const actionlib::SimpleClientGoalState& state, const move_base_msgs::MoveBaseResultConstPtr& result)
   {
-    ROS_WARN("Not Implemented yet");
-  }
+    if (side == 1)
+    {
+      if (A == B)
+      {
+        _send_goal(side2[B]);
+        B++;
+      }
+      else
+      {
+        _send_goal(side2[B]);
+        A++;
+        side = 2;
+      }
+    }
+    else
+    {
+      if (A == B)
+      {
+        _send_goal(side1[A]);
+        A++;
+      }
+      else
+      {
+        _send_goal(side1[A]);
+        B++;
+        side = 1;
+      }
+    }
 
+    //Checking to make sure, that we dont go over the array sizes.
+    if (A >= side1.size())
+    {
+      A = side1.size() - 1;
+    }
+    else if (B >= side2.size())
+    {
+      B = side2.size() - 1;
+    }
+
+    //
+  }
 
 #pragma region Calleback function for getting points
 
@@ -92,7 +132,7 @@ private:
     tmpArray.insert(tmpArray.end(), side2.begin(), side2.end());
 
     send_markers(tmpArray);
-    _send_goal();
+    _send_goal(side2[0]);
 
     return;
   }

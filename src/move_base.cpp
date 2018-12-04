@@ -275,8 +275,6 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
         }
         //publish the array
         cleaning.publish(tmp_array);
-        //sleep so the new node can secure the data sendt from this node before this node shutsdown
-        ros:: Duration(10).sleep();
         //shutsdown node
         ros:: shutdown();
       }
