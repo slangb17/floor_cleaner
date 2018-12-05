@@ -21,6 +21,9 @@
 #include <algorithm>
 #include <tf2/LinearMath/Vector3.h>
 
+#define Percent_Deviation 0.05
+#define Distance_Wall 0.20
+
 using namespace std;
 using namespace ros;
 using namespace geometry_msgs;
@@ -40,6 +43,7 @@ bool wallDetected = false;
 bool wallToTheLeft = false;
 bool cornerFound = false;
 int counter = 0;
+int index_right_unix = 0;
 
 clock_t old_time = 0;
 
@@ -54,6 +58,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> >);
 vector<float> averageVectorFun(vector<vector<float> >);
 void send_markers(vector<vector<float> >);
 void send_marker(vector<vector<float> >);
+float angularVelocity(vector<float>, vector<float> );
 
 //Prints the entries of an array as a warning
 void printFun(vector<vector<float> > input)
@@ -75,6 +80,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
   float laser_angle_min = laser_msg.angle_min;
   float laser_angle_inc = laser_msg.angle_increment;
   u_int laser_ranges_size = laser_ranges.size();
+  if (scan_msg == NULL || laser_ranges_size == 0) return;
 
   //The sensors ranges is divided into three sections: left, center, and right
   //These vectors containes a vector with two variables: Length, 0; Angle, 1
@@ -94,43 +100,57 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     tmp_vec.push_back(laser_ranges[i]); // takes the entry from laser_range and puts it at the buttom of tmp_vec vector
     tmp_vec.push_back(laser_angle_min + (laser_angle_inc * i)); // takes the laser_angle increment times i, adds it to the minimum laser angle to find the angle of the current entry and puts it at the bottom of tmp_vec vector
     // taking all the lasers angles and placing them in three arrays which is left, right, or center.
-    if (i < laser_ranges_size * 1 / 3)
+    if (i < laser_ranges_size * 1.0 / 3.0) //Lower 1/3 is right side.
     {
       lr_pol_right.push_back(tmp_vec);
     }
-    else if (i < laser_ranges_size * 2 / 3)
+    else if (i < laser_ranges_size * 2.0 / 3.0)
     {
       lr_pol_center.push_back(tmp_vec);
     }
-    else
+    else //Upper 1/3 of array is left side
     {
       lr_pol_left.push_back(tmp_vec);
     }
   }
 
+
   //Going from polar cordinats to square cordinats.
-  //Makes directions and a lenghts into a 2D coordinate system   
+  //Makes directions and a lenghts into a 2D coordinate system
+  //ROS_INFO("Debug: 1");
   vector<vector<float> > lr_sqr_right = polarToSquare(lr_pol_right);
-  vector<vector<float> > dir_vectors = dirVectors(lr_sqr_right);
-  ROS_WARN("NEW");
-  vector<vector< float > > dir_vectors2 = mediaVectors(dir_vectors);
-
-  ROS_INFO("Size: %d", dir_vectors2.size());
-  for (int i = 0; i < dir_vectors2.size(); i++)
+  send_markers(lr_sqr_right);
+  if (lr_pol_right.size() != 0) 
   {
-    //ROS_WARN("Indexs: %d, Data_X: %f, Data_y: %f", i, dir_vectors2[i][1],  dir_vectors[i][1]);
+    ROS_INFO("debug1");
+    vector<vector<float> > dir_vectors = dirVectors(lr_sqr_right);
+    vector<vector< float > > dir_vectors2 = mediaVectors(dir_vectors);
+    vector<float> averageVector = averageVectorFun(dir_vectors2);
+    ROS_INFO("debug2");
+
+    vector<float> temps = lr_sqr_right[index_right_unix];
+    ROS_INFO("debug3");
+
+    velocity_msg.angular.z = 0;
+    //velocity_msg.angular.z = angularVelocity(averageVector, temps);
+    velocity_msg.linear.x = 0.2;
+    cmd_vel.publish(velocity_msg);
   }
+}
 
-  vector<float> averageVector = averageVectorFun(dir_vectors);
-  // TODO: Marker of vector.
-
-  double TBAngle = atan2(averageVector[1], averageVector[0]);
-
-  velocity_msg.angular.z = TBAngle;
-  velocity_msg.linear.x = 0.2;
-
-  //send_markers(lr_sqr_right);
-  cmd_vel.publish(velocity_msg);
+//Function for setting the angular velocity of the turtlebot2.
+float angularVelocity(vector<float> dir, vector<float> point)
+{
+  float TBAngle = atan2(dir[1], dir[0]);
+  if (point[1] > Distance_Wall * (1.0 - Percent_Deviation))
+  {
+    TBAngle = TBAngle + 0.2;
+  }
+  else if (point[1] > Distance_Wall * (1.0 + Percent_Deviation))
+  {
+    TBAngle = TBAngle - 0.2;
+  }
+  return TBAngle;
 }
 
 //Takes the x and y from all vectors in an array and calculates the slope (a) of the vector and finds the median ...
@@ -153,19 +173,59 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
       a[i] = y/x;    
     }
   }
-  sort(a, a + size);
+  //sort(a, a + size);
+  //Sizes is a 2D array, which has the value first and the number of hits second.
+  //A array that sorts out based on the standard diviation.
+  list<vector<float> > sizes;
+  vector<float> tempFloat;
+  tempFloat.push_back(a[0]);
+  tempFloat.push_back(1);
+  for ( int i = 0; i < size; i++)
+  {
+    for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+    {
+      vector<float> index_data = (*it);
+      if ( index_data[0]*(1.0 + Percent_Deviation) > a[i] > index_data[0]*(1.0 - Percent_Deviation ) )
+      {
+        index_data[1] += 1.0;
+      }
+      else
+      {
+        vector<float> tempVector;
+        tempVector.push_back(a[i]);
+        tempVector.push_back(1);
+      }
+    }
+  }
+  //Finds the number with the biggest amount of hits and assigns it to sorting number.
+  float max = 0.0;
+  float sortingNumber = 0;
+  for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+  {
+    vector<float> index_data = (*it);
+    if (index_data[1] > max)
+    {
+      sortingNumber = index_data[0];
+      max = index_data[1];
+    }
+  }
   // finds the median and uses it to define an area where the values are acceptable
-  int median = size*(1.0/2.0)-1;
-  float sortingNumber = a[ median ];
-  float sortingMin = sortingNumber * 0.95;
-  float sortingMax = sortingNumber * 1.05;
-  ROS_INFO("Min: %f, Max: %f, SortingNumber: %f", sortingMin, sortingMax, sortingNumber);
+  //int median = size*(1.0/2.0)-1;
+  //float sortingNumber = a[ median ];
+  float sortingMin = sortingNumber * ( 1.0 - Percent_Deviation);
+  float sortingMax = sortingNumber * ( 1.0 + Percent_Deviation);
+  //ROS_INFO("Min: %f, Max: %f, SortingNumber: %f", sortingMin, sortingMax, sortingNumber);
   vector<vector<float> > returnVector;
   // creates a new vectorvector that sorts the acceptable from the outliers
   for(int i=0; i < size; i++)
   {
     if (sortingMax > a[i] > sortingMin)
     {
+      //This function makes the first vector in the vector a index of where the first valid point is.
+      if (returnVector.size() == 0)
+      {
+        index_right_unix = i;
+      }
       returnVector.push_back(input[i]);
     }
   }
@@ -328,7 +388,14 @@ void send_markers(vector<vector<float> > points)
     marker.pose.position.x = points[i][0];
     marker.pose.position.y = points[i][1];
     marker.pose.position.z = marker.scale.x;
-    marker.color.r = 0.0;
+    if (i == 0)
+    {
+      marker.color.r = 1.0;
+    }
+    else
+    {
+      marker.color.r = 0.0;
+    }
     marker.color.g = 1.0;
     marker_array.markers.push_back(marker);
   }
