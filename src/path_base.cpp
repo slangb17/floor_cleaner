@@ -126,8 +126,11 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
 
   double TBAngle = atan2(averageVector[1], averageVector[0]);
 
+  velocity_msg.angular.z = TBAngle;
+  velocity_msg.linear.x = 0.2;
+
   //send_markers(lr_sqr_right);
-  //cmd_vel.publish(velocity_msg);
+  cmd_vel.publish(velocity_msg);
 }
 
 //Takes the x and y from all vectors in an array and calculates the slope (a) of the vector and finds the median ...
@@ -343,7 +346,7 @@ int main(int argc, char **argv)
   //old_time= clock();
 
   // Publisher
-  //cmd_vel = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 100);
+  cmd_vel = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 100);
   cleaning = n.advertise<std_msgs::Float64MultiArray>("/cleaning_points", 100);
   marker_pub = n.advertise<visualization_msgs::MarkerArray>("busroute_markers", 1);
 
