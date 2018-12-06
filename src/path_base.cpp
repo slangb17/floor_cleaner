@@ -22,7 +22,8 @@
 #include <tf2/LinearMath/Vector3.h>
 
 #define Percent_Deviation 0.05
-#define Distance_Wall 0.20
+#define Distance_Wall 0.40
+#define Per_slop 0.2
 
 using namespace std;
 using namespace ros;
@@ -33,17 +34,12 @@ ros::Publisher cmd_vel;
 ros::Publisher cleaning;
 ros::Publisher marker_pub;
 
-double x_cord[4];
-double y_cord[4];
-
 // Variables used in scan_callback:
 sensor_msgs::LaserScan laser_msg;
 geometry_msgs::Twist velocity_msg;
-bool wallDetected = false;
-bool wallToTheLeft = false;
-bool cornerFound = false;
-int counter = 0;
+
 int index_right_unix = 0;
+vector< vector< float > > x_y_cords;
 
 clock_t old_time = 0;
 
@@ -58,16 +54,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> >);
 vector<float> averageVectorFun(vector<vector<float> >);
 void send_markers(vector<vector<float> >);
 void send_marker(vector<vector<float> >);
-float angularVelocity(vector<float>, vector<float> );
-
-//Prints the entries of an array as a warning
-void printFun(vector<vector<float> > input)
-{
-  for (int i = 0; i < input.size(); i++)
-  {
-    ROS_WARN("Index: %d, Data_X: %f, Data_y: %f", i, input[i][0], input[i][1]);
-  }
-}
+float angleFromScanArray(vector<vector<float> > );
 
 //Takes all the data from the infrared distance sensor and places them in three arrays
 void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
@@ -80,14 +67,14 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
   float laser_angle_min = laser_msg.angle_min;
   float laser_angle_inc = laser_msg.angle_increment;
   u_int laser_ranges_size = laser_ranges.size();
-  if (scan_msg == NULL || laser_ranges_size == 0) return;
+  if (scan_msg == NULL || laser_ranges_size < 0.01) return;
 
   //The sensors ranges is divided into three sections: left, center, and right
   //These vectors containes a vector with two variables: Length, 0; Angle, 1
   vector<vector<float> > lr_pol_left;
   vector<vector<float> > lr_pol_center;
   vector<vector<float> > lr_pol_right;
-  
+  //ROS_INFO("Scan_Szie %d", laser_ranges_size);
   //A for loop that loops as many times as there are entries in the laser_ranges vector
   for (int i = 0; i < laser_ranges_size; i++)
   {
@@ -113,44 +100,56 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
       lr_pol_left.push_back(tmp_vec);
     }
   }
-
-
-  //Going from polar cordinats to square cordinats.
-  //Makes directions and a lenghts into a 2D coordinate system
-  //ROS_INFO("Debug: 1");
+  //ROS_INFO("lr_pol_right %d", lr_pol_right.size());
   vector<vector<float> > lr_sqr_right = polarToSquare(lr_pol_right);
   send_markers(lr_sqr_right);
   if (lr_pol_right.size() != 0) 
   {
-    ROS_INFO("debug1");
     vector<vector<float> > dir_vectors = dirVectors(lr_sqr_right);
+    //ROS_INFO("dir_vectors_size %d", dir_vectors.size());
     vector<vector< float > > dir_vectors2 = mediaVectors(dir_vectors);
+    //ROS_INFO("dir_vectors_size2 %d", dir_vectors2.size());
     vector<float> averageVector = averageVectorFun(dir_vectors2);
-    ROS_INFO("debug2");
+    //ROS_INFO("averageVector %d", averageVector.size());
+    //ROS_INFO("debug2");
 
     vector<float> temps = lr_sqr_right[index_right_unix];
-    ROS_INFO("debug3");
+    //ROS_INFO("debug3");
 
-    velocity_msg.angular.z = 0;
-    //velocity_msg.angular.z = angularVelocity(averageVector, temps);
-    velocity_msg.linear.x = 0.2;
+    float TBAngle = 0.0;
+    float TBSpeed = 0.2;
+    float dw = fabs(temps[1]);
+    //ROS_INFO("Distance: %f", dw);
+
+    TBAngle = atan2(averageVector[1], averageVector[0]);
+    ROS_INFO("%f < dw: %f < Distance: %f", Distance_Wall * (1.0 - Percent_Deviation), dw, Distance_Wall * (1.0 + Percent_Deviation) );
+    if (dw > Distance_Wall * (1.0 + Percent_Deviation)) // ser om tb er for tæt på væggen og retter kursen 
+    {
+      TBAngle = TBAngle - 0.2;
+      ROS_WARN("wall to far");
+    }
+    else if (dw < Distance_Wall * (1.0 - Percent_Deviation)) // ser om tb er for langt væk fra væggen og retter kursen 
+    {
+      TBAngle = TBAngle + 0.2;
+      ROS_WARN("wall to close");
+    }
+    else if (Distance_Wall * (1.0 + Percent_Deviation) > dw > Distance_Wall * (1.0 - Percent_Deviation))
+    {
+      if (-0.3 < fabs(TBAngle) < 0.3)
+      {
+        ROS_WARN("Setting Point");
+        corner_saver();
+      }
+    }
+
+    velocity_msg.angular.z = TBAngle;
+    velocity_msg.linear.x = TBSpeed;
     cmd_vel.publish(velocity_msg);
   }
-}
+  //Going from polar cordinats to square cordinats.
+  //Makes directions and a lenghts into a 2D coordinate system
+  //ROS_INFO("Debug: 1");
 
-//Function for setting the angular velocity of the turtlebot2.
-float angularVelocity(vector<float> dir, vector<float> point)
-{
-  float TBAngle = atan2(dir[1], dir[0]);
-  if (point[1] > Distance_Wall * (1.0 - Percent_Deviation))
-  {
-    TBAngle = TBAngle + 0.2;
-  }
-  else if (point[1] > Distance_Wall * (1.0 + Percent_Deviation))
-  {
-    TBAngle = TBAngle - 0.2;
-  }
-  return TBAngle;
 }
 
 //Takes the x and y from all vectors in an array and calculates the slope (a) of the vector and finds the median ...
@@ -173,28 +172,32 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
       a[i] = y/x;    
     }
   }
-  //sort(a, a + size);
+  sort(a, a + size);
   //Sizes is a 2D array, which has the value first and the number of hits second.
   //A array that sorts out based on the standard diviation.
   list<vector<float> > sizes;
   vector<float> tempFloat;
   tempFloat.push_back(a[0]);
-  tempFloat.push_back(1);
+  tempFloat.push_back(0);
+  sizes.push_back(tempFloat);
   for ( int i = 0; i < size; i++)
   {
+    vector<float> tempVector;
+    bool add = true;
     for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
     {
       vector<float> index_data = (*it);
       if ( index_data[0]*(1.0 + Percent_Deviation) > a[i] > index_data[0]*(1.0 - Percent_Deviation ) )
       {
         index_data[1] += 1.0;
+        add = false;
       }
-      else
-      {
-        vector<float> tempVector;
-        tempVector.push_back(a[i]);
-        tempVector.push_back(1);
-      }
+    }
+    if (add)
+    {
+      tempVector.push_back(a[i]);
+      tempVector.push_back(1);
+      sizes.push_back(tempVector);
     }
   }
   //Finds the number with the biggest amount of hits and assigns it to sorting number.
@@ -203,6 +206,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
   for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
   {
     vector<float> index_data = (*it);
+    //ROS_INFO("inside: %f", index_data[1]);
     if (index_data[1] > max)
     {
       sortingNumber = index_data[0];
@@ -300,27 +304,169 @@ void corner_saver()
   old_time = clock();
 
   geometry_msgs::TransformStamped transformStamped;
-  ROS_WARN("Corner Saved: %d", counter);
-  ROS_INFO("Time: %ld", old_time);
+  ROS_WARN("Point Saved");
+  //ROS_INFO("Time: %ld", old_time);
   // trying to obtain coordinates, if it fails it will just send a warning and wait a second.
-  try
+  while (true)
   {
-    transformStamped = tfBuffer.lookupTransform("map", "base_footprint",
-                                                ros::Time(0));
-  }
-  catch (tf2::TransformException &ex)
-  {
-    ROS_WARN("%s", ex.what());
-    ros::Duration(1.0).sleep();
+    try
+    {
+      transformStamped = tfBuffer.lookupTransform("map", "base_footprint", ros::Time(0));
+      break;
+    }
+    catch (tf2::TransformException &ex)
+    {
+      ROS_WARN("%s", ex.what());
+      ros::Duration(1.0).sleep();
+    }
   }
 
   //adding coordinates in the x and y array
-  x_cord[counter] = fabs(transformStamped.transform.translation.x);
-  y_cord[counter] = fabs(transformStamped.transform.translation.y);
-
-  //incrementing to assign a place in the array
-  counter++;
+  vector< float > TBMarkers;
+  TBMarkers.push_back(fabs(transformStamped.transform.translation.x));
+  TBMarkers.push_back(fabs(transformStamped.transform.translation.y));
+  x_y_cords.push_back(TBMarkers);
 }
+
+//Takes a point matrix.
+vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
+{
+  vector< vector< float > > dir_vectors;
+  dir_vectors = dirVectors(input);
+
+  int size = dir_vectors.size();
+  float a[size];  
+  //for every vector it finds the slope y/x=a
+  for (int i = 0; i < size; i++)
+  {
+    float x = input[i][0];
+    float y = input[i][1];
+    if (x < 0.01)
+    {
+      a[i] = y;
+    }
+    else
+    {
+      a[i] = y/x;    
+    }
+  }
+  
+  list<vector<float> > sizes;
+  vector<float> tempFloat;
+  tempFloat.push_back(a[0]);
+  tempFloat.push_back(0);
+  sizes.push_back(tempFloat);
+  // catagorises vectors into groups with similar slopes
+  for ( int i = 0; i < size; i++)
+  {
+    vector<float> tempVector;
+    bool add = true;
+    for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+    {
+      vector<float> index_data = (*it);
+      if ( index_data[0]*(1.0 + Percent_Deviation) > a[i] > index_data[0]*(1.0 - Percent_Deviation ) )
+      {
+        index_data[1] += 1.0;
+        add = false;
+      }
+    }
+    if (add)
+    {
+      tempVector.push_back(a[i]);
+      tempVector.push_back(1);
+      sizes.push_back(tempVector);
+    }
+  }
+  //Finds the number with the biggest amount of hits and assigns it to sorting number.
+  float max[4] = {0.0};
+  float sortingNumber[4] = {0.0};
+  for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+  {
+    vector<float> index_data = (*it);
+    for(int i = 0; i < 4; i++)
+    {
+      if (max[i] < index_data[1])
+      {
+        max[i] = index_data[1];
+        sortingNumber[i] = index_data[0];
+        break;
+      }
+    }
+  }
+
+  //Return array, only the vectors with the right slop is being keeped. 
+  vector< vector< float > > vector_newest;
+  vector< vector< float > > point_newest;
+
+  for (int i = 0; i < size; i++)
+  {
+    for( int j = 0; j < 4; j++)
+    {
+      float sorting_Max = sortingNumber[j] * (1.0 + Percent_Deviation);
+      float sorting_Min = sortingNumber[j] * (1.0 - Percent_Deviation);
+      if ( sorting_Max > a[i] > sorting_Min )
+      {
+        vector_newest[j][0] = vector_newest[j][0] + dir_vectors[i][0];
+        vector_newest[j][1] = vector_newest[j][1] + dir_vectors[i][1];
+        point_newest[j] = input[i];
+      }
+    }
+  }
+
+  vector<vector< float > > a_b;
+  for(int i = 0; i < vector_newest.size(); i++)
+  {
+    float a = 0.0;
+    float b = 0.0;
+    if (0.001 > vector_newest[i][0] > -0.001)
+    {
+      a = vector_newest[i][1];
+    }
+    else
+    {
+      a = vector_newest[i][1] / vector_newest[i][0];
+    }
+    b = point_newest[i][1] - a * point_newest[i][0];
+    a_b[i][0] = a;
+    a_b[i][1] = b;
+  }
+
+  vector<vector< float > > intersectionPoints = intersections(a_b);
+  
+}
+//Finds the intersections between four given points.
+vector<vector< float > > intersections (vector< vector< float > > input)
+{
+  vector<vector< float > > returnvector;
+  for (int i=0; i< input.size(); i++)
+  {
+    float a = input[i][0];
+    float b = input[i][1];
+    for (int j = i + 1; j < input.size(); j++)
+    {
+      float c = input[j][0];
+      float d = input[j][1];
+
+      if ((1.0 - Per_slop) * a < c < a * (1.0 + Per_slop))
+      {
+        continue;
+      }
+      else
+      {
+        float x = (d-b)/(a-c);
+        float y = a*( (d-b)/(a-c) ) + b;
+        
+        vector< float > tempReturn;
+        tempReturn.push_back(x);
+        tempReturn.push_back(y);
+
+        returnvector.push_back(tempReturn);
+      }
+    }
+  }
+  return returnvector;
+}
+
 #pragma region Marker
 //Sets the markers on the map.
 void send_marker(vector< vector< float> > input) 
@@ -410,7 +556,6 @@ int main(int argc, char **argv)
   // Node handler
   ros::NodeHandle n;
   tf2_ros::TransformListener tfListener(tfBuffer);
-  //old_time= clock();
 
   // Publisher
   cmd_vel = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/navi", 100);
@@ -424,24 +569,7 @@ int main(int argc, char **argv)
   {
     ros::spinOnce();
     //checks to see if conter if more than 2. If counter is 3, the robot has obtained 4 coordinatesets for 4 different corners.
-    if (counter > 3)
-    {
-      //initializing an array of the type float64
-      std_msgs::Float64MultiArray tmp_array;
-      //everything in the array is set to 0
-      tmp_array.data.clear();
 
-      //counter to go throught the arrays
-      for (int i = 0; i < counter; i++)
-      {
-        //using the push_back function to push first x than y to the array
-        tmp_array.data.push_back(x_cord[i]);
-        tmp_array.data.push_back(y_cord[i]);
-      }
-      //publish the array
-      cleaning.publish(tmp_array);
-      //shutsdown node
-      ros::shutdown();
     }
   }
   return 0;
