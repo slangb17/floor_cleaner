@@ -24,6 +24,8 @@
 #define Percent_Deviation 0.05
 #define Distance_Wall 0.40
 #define Per_slop 0.2
+#define End_Distance 0.5
+#define Time_Points 2
 
 using namespace std;
 using namespace ros;
@@ -42,6 +44,7 @@ int index_right_unix = 0;
 vector< vector< float > > x_y_cords;
 
 clock_t old_time = 0;
+clock_t old_time2 = 0;
 
 //Initialize the transform listener
 tf2_ros::Buffer tfBuffer;
@@ -55,6 +58,9 @@ vector<float> averageVectorFun(vector<vector<float> >);
 void send_markers(vector<vector<float> >);
 void send_marker(vector<vector<float> >);
 float angleFromScanArray(vector<vector<float> > );
+vector< float > currentPos();
+vector< vector< float > > dirVectorsPoints(vector< vector< float > >);
+vector<vector< float > > intersections (vector< vector< float > >);
 
 //Takes all the data from the infrared distance sensor and places them in three arrays
 void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
@@ -102,7 +108,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
   }
   //ROS_INFO("lr_pol_right %d", lr_pol_right.size());
   vector<vector<float> > lr_sqr_right = polarToSquare(lr_pol_right);
-  send_markers(lr_sqr_right);
+  //send_markers(lr_sqr_right);
   if (lr_pol_right.size() != 0) 
   {
     vector<vector<float> > dir_vectors = dirVectors(lr_sqr_right);
@@ -122,22 +128,21 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     //ROS_INFO("Distance: %f", dw);
 
     TBAngle = atan2(averageVector[1], averageVector[0]);
-    ROS_INFO("%f < dw: %f < Distance: %f", Distance_Wall * (1.0 - Percent_Deviation), dw, Distance_Wall * (1.0 + Percent_Deviation) );
+    //ROS_INFO("%f < dw: %f < Distance: %f", Distance_Wall * (1.0 - Percent_Deviation), dw, Distance_Wall * (1.0 + Percent_Deviation) );
     if (dw > Distance_Wall * (1.0 + Percent_Deviation)) // ser om tb er for tæt på væggen og retter kursen 
     {
       TBAngle = TBAngle - 0.2;
-      ROS_WARN("wall to far");
+      //ROS_WARN("wall to far");
     }
     else if (dw < Distance_Wall * (1.0 - Percent_Deviation)) // ser om tb er for langt væk fra væggen og retter kursen 
     {
       TBAngle = TBAngle + 0.2;
-      ROS_WARN("wall to close");
+      //ROS_WARN("wall to close");
     }
     else if (Distance_Wall * (1.0 + Percent_Deviation) > dw > Distance_Wall * (1.0 - Percent_Deviation))
     {
-      if (-0.3 < fabs(TBAngle) < 0.3)
+      if (fabs(TBAngle) < 0.3)
       {
-        ROS_WARN("Setting Point");
         corner_saver();
       }
     }
@@ -297,17 +302,41 @@ vector<vector<float> > dirVectors(vector<vector<float> > input)
 void corner_saver()
 {
   // checking time since last run, this is to secure the robot does not run this function multiple times in same corner
-  if (clock() - old_time < 20000000)
+  if (clock() - old_time < Time_Points * 1000000)
   {
     return;
   }
   old_time = clock();
 
-  geometry_msgs::TransformStamped transformStamped;
-  ROS_WARN("Point Saved");
+  
   //ROS_INFO("Time: %ld", old_time);
   // trying to obtain coordinates, if it fails it will just send a warning and wait a second.
-  while (true)
+  ROS_WARN("Point Saved");
+  x_y_cords.push_back( currentPos() );
+}
+
+void checkLap()
+{
+  if (x_y_cords.size() == 0) return;
+  vector< float > startPos = x_y_cords[0];
+  float startX = startPos[0];
+  float startY = startPos[1];
+  vector<float> tempPos = currentPos();
+  float curX = tempPos[0];
+  float curY = tempPos[1];
+  float distBetween = sqrt(pow(startX-curX,2) + pow(startY-curY,2));
+  if (distBetween < End_Distance && clock() - old_time2 > 10000000)
+  {
+    ROS_WARN("Distance: %f", distBetween);
+    dirVectorsPoints (x_y_cords);  
+    ros::shutdown();
+  }
+}
+
+vector< float > currentPos()
+{
+  geometry_msgs::TransformStamped transformStamped;
+   while (true)
   {
     try
     {
@@ -325,12 +354,13 @@ void corner_saver()
   vector< float > TBMarkers;
   TBMarkers.push_back(fabs(transformStamped.transform.translation.x));
   TBMarkers.push_back(fabs(transformStamped.transform.translation.y));
-  x_y_cords.push_back(TBMarkers);
+  return TBMarkers;
 }
 
 //Takes a point matrix.
 vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
 {
+  if (input.size() == 0) return vector< vector< float > >();
   vector< vector< float > > dir_vectors;
   dir_vectors = dirVectors(input);
 
@@ -397,6 +427,18 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
   //Return array, only the vectors with the right slop is being keeped. 
   vector< vector< float > > vector_newest;
   vector< vector< float > > point_newest;
+  for (int i = 0; i < 4; i++)
+  {
+    vector<float > tmp;
+    tmp.push_back(0);
+    tmp.push_back(0);
+    vector_newest.push_back(tmp);
+
+    vector<float > tmp2;
+    tmp2.push_back(0);
+    tmp2.push_back(0);
+    point_newest.push_back(tmp2);
+  }
 
   for (int i = 0; i < size; i++)
   {
@@ -427,12 +469,17 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
       a = vector_newest[i][1] / vector_newest[i][0];
     }
     b = point_newest[i][1] - a * point_newest[i][0];
-    a_b[i][0] = a;
-    a_b[i][1] = b;
+
+    vector< float > tmp;
+    tmp.push_back(a);
+    tmp.push_back(b);
+    a_b.push_back(tmp);
   }
 
   vector<vector< float > > intersectionPoints = intersections(a_b);
-  
+
+  send_markers(intersectionPoints);
+  return vector< vector < float > >();
 }
 //Finds the intersections between four given points.
 vector<vector< float > > intersections (vector< vector< float > > input)
@@ -466,42 +513,6 @@ vector<vector< float > > intersections (vector< vector< float > > input)
   }
   return returnvector;
 }
-
-#pragma region Marker
-//Sets the markers on the map.
-void send_marker(vector< vector< float> > input) 
-{
-  //ROS_WARN("Sending Markers");
-  visualization_msgs::Marker marker;
-  marker.header.stamp = ros::Time::now();
-  marker.ns = "bus_stops";
-  marker.type = visualization_msgs::Marker::ARROW;
-  marker.action = visualization_msgs::Marker::ADD;
-  marker.scale.x = 0.5;
-  marker.scale.y = 0.1;
-  marker.scale.z = 0.1;
-  marker.color.r = 0.0;
-  marker.color.g = 1.0;
-  marker.color.b = 0.0;
-  marker.color.a = 1.0;
-  marker.pose.orientation.x = 0;
-  marker.pose.orientation.y = 0;
-  marker.pose.orientation.z = 5;
-  marker.pose.orientation.w = 0;
-  marker.lifetime = ros::Duration();
-
-  visualization_msgs::MarkerArray marker_array;
-  marker.header.frame_id = "base_laser_link";
-  marker.id = 1;
-  marker.pose.position.x = input[0][0];
-  marker.pose.position.y = input[0][1];
-  marker.pose.position.z = 0;
-  marker.color.r = 0.0;
-  marker.color.g = 1.0;
-  marker_array.markers.push_back(marker);
-  marker_pub.publish(marker_array);
-}
-#pragma endregion
 #pragma region Markers
 //Sets the markers on the map.
 void send_markers(vector<vector<float> > points) 
@@ -565,12 +576,12 @@ int main(int argc, char **argv)
   // Subscriber
   ros::Subscriber laser_scan = n.subscribe("/scan", 1000, scan_callback);
 
+  old_time2 = clock();
+
   while (ros::ok())
   {
+    checkLap();
     ros::spinOnce();
-    //checks to see if conter if more than 2. If counter is 3, the robot has obtained 4 coordinatesets for 4 different corners.
-
-    }
   }
   return 0;
 }
