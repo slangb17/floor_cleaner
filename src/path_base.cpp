@@ -24,7 +24,7 @@
 #define Percent_Deviation 0.05
 #define Distance_Wall 0.40
 #define Per_slop 0.2
-#define End_Distance 0.5
+#define End_Distance 0.2
 #define Time_Points 2
 
 using namespace std;
@@ -325,7 +325,7 @@ void checkLap()
   float curX = tempPos[0];
   float curY = tempPos[1];
   float distBetween = sqrt(pow(startX-curX,2) + pow(startY-curY,2));
-  if (distBetween < End_Distance && clock() - old_time2 > 10000000)
+  if (distBetween < End_Distance && clock() - old_time2 > 20000000)
   {
     ROS_WARN("Distance: %f", distBetween);
     dirVectorsPoints (x_y_cords);  
@@ -336,7 +336,7 @@ void checkLap()
 vector< float > currentPos()
 {
   geometry_msgs::TransformStamped transformStamped;
-   while (true)
+  while (true)
   {
     try
     {
@@ -478,7 +478,6 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
 
   vector<vector< float > > intersectionPoints = intersections(a_b);
 
-  send_markers(intersectionPoints);
   return vector< vector < float > >();
 }
 //Finds the intersections between four given points.
@@ -540,7 +539,7 @@ void send_markers(vector<vector<float> > points)
   visualization_msgs::MarkerArray marker_array;
   for (int i = 0; i < markers; i++)
   {
-    marker.header.frame_id = "camera_depth_frame";
+    marker.header.frame_id = "map";
     marker.id = i;
     marker.pose.position.x = points[i][0];
     marker.pose.position.y = points[i][1];
@@ -563,7 +562,7 @@ void send_markers(vector<vector<float> > points)
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "path_base");
-
+  ROS_INFO("Started Node");
   // Node handler
   ros::NodeHandle n;
   tf2_ros::TransformListener tfListener(tfBuffer);
@@ -581,6 +580,7 @@ int main(int argc, char **argv)
   while (ros::ok())
   {
     checkLap();
+    send_markers(x_y_cords);
     ros::spinOnce();
   }
   return 0;
