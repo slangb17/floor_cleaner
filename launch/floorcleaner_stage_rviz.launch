@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+  <include file="$(find turtlebot_stage)/launch/turtlebot_in_stage.launch" />
+  <node name="floor_cleaner" pkg="floor_cleaner" type="move_base.cpp" />
+  <node name="floor_cleaner2" pkg="floor_cleaner" type="path_base.cpp" />
+  <node name="$(anon rviz)" pkg="rviz" type="rviz" args="-d $(find floor_cleaner)/config/path_base_marker_array.rviz"/>
+</launch>
