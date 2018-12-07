@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+  <include file="$(find turtlebot_gazebo)/launch/turtlebot_world.launch" />
+  <include file="$(find turtlebot_gazebo)/launch/gmapping_demo.launch" />
+  <include file="$(find turtlebot_navigation)/launch/includes/move_base.launch.xml" />
+  <node name="$(anon rviz)" pkg="rviz" type="rviz" args="-d $(find busroute)/config/busrouting.rviz"/>
+</launch>
