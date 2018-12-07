@@ -20,6 +20,9 @@
 #include <math.h>
 #include <algorithm>
 #include <tf2/LinearMath/Vector3.h>
+#include <list>
+#include <string>
+#include <cctype>
 
 #define Percent_Deviation 0.05
 #define Distance_Wall 0.40
@@ -358,6 +361,10 @@ vector< float > currentPos()
   return TBMarkers;
 }
 
+bool sorting(const std::vector<float>& a, const std::vector<float>& b) 
+{ 
+  return a[1] < b[1]; 
+}
 //Takes a point matrix.
 vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
 {
@@ -425,7 +432,7 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
     }
   }*/
 
-  sort(sizes.begin(), sizes.end(), [](const std::vector<int>& a, const std::vector<int>& b) { return a[1] < b[1]; });
+  sizes.sort(sorting);
   for (int i = 0; i < 4; i++)
   {
     vector< float > index_data = sizes.back();
@@ -589,7 +596,6 @@ int main(int argc, char **argv)
   while (ros::ok())
   {
     checkLap();
-    send_markers(x_y_cords);
     ros::spinOnce();
   }
   return 0;
