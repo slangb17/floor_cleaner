@@ -218,6 +218,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
       max = index_data[1];
     }
   }
+  
   // finds the median and uses it to define an area where the values are acceptable
   //int median = size*(1.0/2.0)-1;
   //float sortingNumber = a[ median ];
@@ -408,9 +409,9 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
     }
   }
   //Finds the number with the biggest amount of hits and assigns it to sorting number.
-  float max[4] = {0.0};
+  //float max[4] = {0.0};
   float sortingNumber[4] = {0.0};
-  for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+  /*for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
   {
     vector<float> index_data = (*it);
     for(int i = 0; i < 4; i++)
@@ -422,6 +423,14 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
         break;
       }
     }
+  }*/
+
+  sort(sizes.begin(), sizes.end(), [](const std::vector<int>& a, const std::vector<int>& b) { return a[1] < b[1]; });
+  for (int i = 0; i < 4; i++)
+  {
+    vector< float > index_data = sizes.back();
+    sizes.pop_back();
+    sortingNumber[i] = index_data[0];
   }
 
   //Return array, only the vectors with the right slop is being keeped. 
