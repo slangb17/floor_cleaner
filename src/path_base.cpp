@@ -25,7 +25,7 @@
 #include <cctype>
 
 #define Percent_Deviation 0.05
-#define Distance_Wall 0.40
+#define Distance_Wall 0.35
 #define Per_slop 0.2
 #define End_Distance 0.2
 #define Time_Points 2
@@ -326,6 +326,7 @@ void checkLap()
   float startX = startPos[0];
   float startY = startPos[1];
   vector<float> tempPos = currentPos();
+  if (tempPos.size() == 0) return;
   float curX = tempPos[0];
   float curY = tempPos[1];
   float distBetween = sqrt(pow(startX-curX,2) + pow(startY-curY,2));
@@ -340,11 +341,14 @@ void checkLap()
 vector< float > currentPos()
 {
   geometry_msgs::TransformStamped transformStamped;
-  while (true)
+  vector< float > TBMarkers;
+  for (int i = 0; i < 10; i++)
   {
     try
     {
       transformStamped = tfBuffer.lookupTransform("map", "base_footprint", ros::Time(0));
+      TBMarkers.push_back(fabs(transformStamped.transform.translation.x));
+      TBMarkers.push_back(fabs(transformStamped.transform.translation.y));
       break;
     }
     catch (tf2::TransformException &ex)
@@ -353,11 +357,6 @@ vector< float > currentPos()
       ros::Duration(1.0).sleep();
     }
   }
-
-  //adding coordinates in the x and y array
-  vector< float > TBMarkers;
-  TBMarkers.push_back(fabs(transformStamped.transform.translation.x));
-  TBMarkers.push_back(fabs(transformStamped.transform.translation.y));
   return TBMarkers;
 }
 
@@ -596,6 +595,7 @@ int main(int argc, char **argv)
   while (ros::ok())
   {
     checkLap();
+    send_markers(x_y_cords);
     ros::spinOnce();
   }
   return 0;

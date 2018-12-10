@@ -62,6 +62,7 @@ private:
     {
       if (A == B)
       {
+        ROS_INFO("Going to B: %d", B);
         _send_goal(side2[B]);
         B++;
       }
@@ -76,6 +77,7 @@ private:
     {
       if (A == B)
       {
+         ROS_INFO("Going to A: %d", A);
         _send_goal(side1[A]);
         A++;
       }

@@ -90,7 +90,7 @@ void clickCallback(const geometry_msgs::PointStamped::ConstPtr &msg)
     {
       //using the push_back function to push first x than y to the array
       tmp_array.data.push_back(points[i][0]);
-      tmp_array.data.push_back(points[i][0]);
+      tmp_array.data.push_back(points[i][1]);
     }
     //publish the array
     cleaning.publish(tmp_array);
@@ -108,11 +108,11 @@ int main(int argc, char **argv)
   ros::NodeHandle node;
 
 
-  cleaning = node.advertise<std_msgs::Float64MultiArray>("/cleaning_points", 100);
+  cleaning = node.advertise<std_msgs::Float64MultiArray>("/cleaning_points", 1);
   marker_pub = node.advertise<visualization_msgs::MarkerArray>("busroute_markers", 1);
 
   // Subscribe to the clicked point from RViz
-  click_sub = node.subscribe("clicked_point", 1000, clickCallback);
+  click_sub = node.subscribe("clicked_point", 1, clickCallback);
 
   // The business code
   // - Lookup the position of the robot in the map frame.
