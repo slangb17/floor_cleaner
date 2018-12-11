@@ -26,12 +26,13 @@
 
 using namespace std;
 using namespace visualization_msgs;
+using namespace ros;
 
 class Route
 {
 private:
-  ros::Publisher marker_pub;
-  ros::Subscriber cleaning;
+  Publisher marker_pub;
+  Subscriber cleaning;
   actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> client;
 
   //array for x and y coordinates
@@ -61,6 +62,7 @@ private:
     {
       if (A == B)
       {
+        ROS_INFO("Going to B: %d", B);
         _send_goal(side2[B]);
         B++;
       }
@@ -75,6 +77,7 @@ private:
     {
       if (A == B)
       {
+         ROS_INFO("Going to A: %d", A);
         _send_goal(side1[A]);
         A++;
       }
@@ -95,8 +98,6 @@ private:
     {
       B = side2.size() - 1;
     }
-
-    //
   }
 
 #pragma region Calleback function for getting points
@@ -132,7 +133,6 @@ private:
     tmpArray.insert(tmpArray.end(), side2.begin(), side2.end());
 
     send_markers(tmpArray);
-    ros::Duration(10).sleep();
     _send_goal(side2[0]);
 
     return;
