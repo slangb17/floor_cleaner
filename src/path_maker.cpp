@@ -41,16 +41,16 @@ private:
   vector<vector<double> > side1;
   vector<vector<double> > side2;
 
-  int side = 2;
-  int A = 0;
-  int B = 0;
+  int side_go_to = 2;
+  int side_one_counter = 0;
+  int side_two_counter = 0;
 
-  void _send_goal(vector< double > side)
+  void _send_goal(vector< double > current_point)
   {
       move_base_msgs::MoveBaseGoal goal;
       goal.target_pose.header.frame_id = "map";
-      goal.target_pose.pose.position.x = side[0];
-      goal.target_pose.pose.position.y = side[1];
+      goal.target_pose.pose.position.x = current_point[0];
+      goal.target_pose.pose.position.y = current_point[1];
       goal.target_pose.pose.position.z = 0;
       goal.target_pose.pose.orientation.w = 1.0;
       client.sendGoal(goal, boost::bind(&Route::_target_reached_cb, this, _1, _2)  );
@@ -58,45 +58,49 @@ private:
 
   void _target_reached_cb(const actionlib::SimpleClientGoalState& state, const move_base_msgs::MoveBaseResultConstPtr& result)
   {
-    if (side == 1)
+    if (side_go_to == 1)
     {
-      if (A == B)
+      if (side_one_counter == side_two_counter)
       {
-        ROS_INFO("Going to B: %d", B);
-        _send_goal(side2[B]);
-        B++;
+        ROS_INFO("Going to side_two_counter: %d", side_two_counter);
+        _send_goal(side2[side_two_counter]);
+        side_two_counter++;
       }
       else
       {
-        _send_goal(side2[B]);
-        A++;
-        side = 2;
+        _send_goal(side2[side_two_counter]);
+        side_one_counter++;
+        side_go_to = 2;
       }
     }
     else
     {
-      if (A == B)
+      if (side_one_counter == side_two_counter)
       {
-         ROS_INFO("Going to A: %d", A);
-        _send_goal(side1[A]);
-        A++;
+         ROS_INFO("Going to side_one_counter: %d", side_one_counter);
+        _send_goal(side1[side_one_counter]);
+        side_one_counter++;
       }
       else
       {
-        _send_goal(side1[A]);
-        B++;
-        side = 1;
+        _send_goal(side1[side_one_counter]);
+        side_two_counter++;
+        side_go_to = 1;
       }
     }
 
     //Checking to make sure, that we dont go over the array sizes.
-    if (A >= side1.size())
+    if (side_one_counter >= side1.size())
     {
-      A = side1.size() - 1;
+      side_one_counter = side1.size() - 1;
     }
-    else if (B >= side2.size())
+    else if (side_two_counter >= side2.size())
     {
-      B = side2.size() - 1;
+      side_two_counter = side2.size() - 1;
+    }
+    if ( side_one_counter == side1.size()-1 && side_two_counter == side2.size()-1)
+    {
+      shutdown();
     }
   }
 
