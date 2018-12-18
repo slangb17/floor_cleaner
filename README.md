@@ -7,6 +7,7 @@ The package floor_cleaner includes three nodes: node_maker, path_base, and path_
 	3) Path_maker creates the markers and sends goal the move_base action server.
 
 The package can be found at: https://github.com/Slangb17/floor_cleaner/
+
 A video of a TurtleBot2 running the code can be found at: https://youtu.be/569jHgJBulE
 
 - December 18th, 2018
