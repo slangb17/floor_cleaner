@@ -194,9 +194,9 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
     vector<float> tempVector;
     for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
     {
-      if ( it[0]*(1.0 + Percent_Deviation) > a[i] > it[0]*(1.0 - Percent_Deviation ) )
+      if ( it->data[0]*(1.0 + Percent_Deviation) > a[i] > it->data[0]*(1.0 - Percent_Deviation ) )
       {
-        it[1] += 1.0;
+        sizes[it->at][1] += 1.0;
       }
     }
   }
