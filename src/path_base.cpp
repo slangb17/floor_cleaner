@@ -184,28 +184,20 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
   //Sizes is a 2D array, which has the value first and the number of hits second.
   //A array that sorts out based on the standard diviation.
   list<vector<float> > sizes;
-  vector<float> tempFloat;
-  tempFloat.push_back(a[0]);
-  tempFloat.push_back(0);
-  sizes.push_back(tempFloat);
   for ( int i = 0; i < size; i++)
   {
+    vector<float> tempFloat;
+    tempFloat.push_back(a[i]);
+    tempFloat.push_back(0);
+    sizes.push_back(tempFloat);
+
     vector<float> tempVector;
-    bool add = true;
     for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
     {
-      vector<float> index_data = (*it);
-      if ( index_data[0]*(1.0 + Percent_Deviation) > a[i] > index_data[0]*(1.0 - Percent_Deviation ) )
+      if ( it[0]*(1.0 + Percent_Deviation) > a[i] > it[0]*(1.0 - Percent_Deviation ) )
       {
-        index_data[1] += 1.0;
-        add = false;
+        it[1] += 1.0;
       }
-    }
-    if (add)
-    {
-      tempVector.push_back(a[i]);
-      tempVector.push_back(1);
-      sizes.push_back(tempVector);
     }
   }
   //Finds the number with the biggest amount of hits and assigns it to sorting number.
