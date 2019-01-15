@@ -183,7 +183,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
   sort(a, a + size);
   //Sizes is a 2D array, which has the value first and the number of hits second.
   //A array that sorts out based on the standard diviation.
-  list<vector<float> > sizes;
+  vector<vector<float> > sizes;
   for ( int i = 0; i < size; i++)
   {
     vector<float> tempFloat;
@@ -192,18 +192,19 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
     sizes.push_back(tempFloat);
 
     vector<float> tempVector;
-    for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+    for (int j = 0; j < sizes.size(); j++)
     {
-      if ( it->data[0]*(1.0 + Percent_Deviation) > a[i] > it->data[0]*(1.0 - Percent_Deviation ) )
+      vector< float > temps = sizes[j];
+      if ( temps[0]*(1.0 + Percent_Deviation) > a[i] > temps[0]*(1.0 - Percent_Deviation ) )
       {
-        sizes[it->at][1] += 1.0;
+        sizes[j][1] += 1.0;
       }
     }
   }
   //Finds the number with the biggest amount of hits and assigns it to sorting number.
   float max = 0.0;
   float sortingNumber = 0;
-  for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+  for (vector<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
   {
     vector<float> index_data = (*it);
     //ROS_INFO("inside: %f", index_data[1]);
