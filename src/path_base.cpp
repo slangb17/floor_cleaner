@@ -213,18 +213,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
       max = index_data[1];
     }
   }
-  /*
-  for (vector<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
-  {
-    vector<float> index_data = (*it);
-    //ROS_INFO("inside: %f", index_data[1]);
-    if (index_data[1] > max)
-    {
-      sortingNumber = index_data[0];
-      max = index_data[1];
-    }
-  }
-*/
+
   // finds the median and uses it to define an area where the values are acceptable
   //int median = size*(1.0/2.0)-1;
   //float sortingNumber = a[ median ];
@@ -367,10 +356,6 @@ vector< float > currentPos()
   return TBMarkers;
 }
 
-bool sorting(const std::vector<float>& a, const std::vector<float>& b)
-{
-  return a[1] < b[1];
-}
 //Takes a point matrix.
 vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
 {
@@ -395,51 +380,46 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
     }
   }
 
-  list<vector<float> > sizes;
-  vector<float> tempFloat;
-  tempFloat.push_back(a[0]);
-  tempFloat.push_back(0);
-  sizes.push_back(tempFloat);
-  // catagorises vectors into groups with similar slopes
+  vector<vector<float> > sizes;
   for ( int i = 0; i < size; i++)
   {
+    vector<float> tempFloat;
+    tempFloat.push_back(a[i]);
+    tempFloat.push_back(0);
+    sizes.push_back(tempFloat);
+
     vector<float> tempVector;
-    bool add = true;
-    for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+    for (int j = 0; j < sizes.size(); j++)
     {
-      vector<float> index_data = (*it);
-      if ( index_data[0]*(1.0 + Percent_Deviation) > a[i] > index_data[0]*(1.0 - Percent_Deviation ) )
+      vector< float > temps = sizes[j];
+      if ( temps[0]*(1.0 + Percent_Deviation) > a[i] > temps[0]*(1.0 - Percent_Deviation ) )
       {
-        index_data[1] += 1.0;
-        add = false;
+        sizes[j][1] += 1.0;
       }
     }
-    if (add)
+  }
+
+  //Finds the number with the biggest amount of hits and assigns it to sorting number.
+  float max = 0.0;
+  float Number = 0;
+  for (int i=0 ; i<sizes.size();i++)
+  {
+    vector<float> index_data = sizes[i];
+    //ROS_INFO("inside: %f", index_data[1]);
+    if (index_data[1] > max)
     {
-      tempVector.push_back(a[i]);
-      tempVector.push_back(1);
-      sizes.push_back(tempVector);
+      Number = index_data[0];
+      max = index_data[1];
     }
   }
-  
+
+
   //Finds the number with the biggest amount of hits and assigns it to sorting number.
   //float max[4] = {0.0};
   float sortingNumber[4] = {0.0};
-  /*for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
-  {
-    vector<float> index_data = (*it);
-    for(int i = 0; i < 4; i++)
-    {
-      if (max[i] < index_data[1])
-      {
-        max[i] = index_data[1];
-        sortingNumber[i] = index_data[0];
-        break;
-      }
-    }
-  }*/
 
-  sizes.sort(sorting);
+
+  sort(sizes.begin(), sizes.end());
   for (int i = 0; i < 4; i++)
   {
     vector< float > index_data = sizes.back();
