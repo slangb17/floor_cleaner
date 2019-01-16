@@ -196,7 +196,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
       vector< float > temps = sizes[i];
       if ( temps[0]*(1.0 + Percent_Deviation) > a[j] > temps[0]*(1.0 - Percent_Deviation ) )
       {
-        sizes[j][1] += 1.0;
+        sizes[i][1] += 1.0;
       }
     }
   }
