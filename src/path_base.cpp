@@ -193,8 +193,8 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
     vector<float> tempVector;
     for (int j = 0; j < size; j++)
     {
-      vector< float > temps = sizes[j];
-      if ( temps[0]*(1.0 + Percent_Deviation) > a[i] > temps[0]*(1.0 - Percent_Deviation ) )
+      vector< float > temps = sizes[i];
+      if ( temps[0]*(1.0 + Percent_Deviation) > a[j] > temps[0]*(1.0 - Percent_Deviation ) )
       {
         sizes[j][1] += 1.0;
       }
