@@ -213,6 +213,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
       max = index_data[1];
     }
   }
+  /*
   for (vector<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
   {
     vector<float> index_data = (*it);
@@ -223,7 +224,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
       max = index_data[1];
     }
   }
-
+*/
   // finds the median and uses it to define an area where the values are acceptable
   //int median = size*(1.0/2.0)-1;
   //float sortingNumber = a[ median ];
@@ -394,7 +395,7 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
     }
   }
 
-  list<vector<float> > sizes;
+  /*list<vector<float> > sizes;
   vector<float> tempFloat;
   tempFloat.push_back(a[0]);
   tempFloat.push_back(0);
@@ -420,6 +421,7 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
       sizes.push_back(tempVector);
     }
   }
+  */
   //Finds the number with the biggest amount of hits and assigns it to sorting number.
   //float max[4] = {0.0};
   float sortingNumber[4] = {0.0};
