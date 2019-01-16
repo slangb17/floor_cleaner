@@ -39,15 +39,12 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(move_base src/move_base.cpp)
+
 add_executable(path_maker src/path_maker.cpp)
 add_executable(path_base src/path_base.cpp)
 add_executable(node_maker src/node_maker.cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(move_base
-  ${catkin_LIBRARIES}
-)
 
 target_link_libraries(path_maker
   ${catkin_LIBRARIES}

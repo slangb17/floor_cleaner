@@ -59,7 +59,6 @@ vector<vector<float> > dirVectors(vector<vector<float> >);
 vector<vector<float> > mediaVectors(vector<vector<float> >);
 vector<float> averageVectorFun(vector<vector<float> >);
 void send_markers(vector<vector<float> >);
-void send_marker(vector<vector<float> >);
 float angleFromScanArray(vector<vector<float> > );
 vector< float > currentPos();
 vector< vector< float > > dirVectorsPoints(vector< vector< float > >);
@@ -315,14 +314,18 @@ void corner_saver()
 void checkLap()
 {
   if (x_y_cords.size() == 0) return;
+
   vector< float > startPos = x_y_cords[0];
   float startX = startPos[0];
   float startY = startPos[1];
+
   vector<float> tempPos = currentPos();
   if (tempPos.size() == 0) return;
   float curX = tempPos[0];
   float curY = tempPos[1];
+
   float distBetween = sqrt(pow(startX-curX,2) + pow(startY-curY,2));
+
   if (distBetween < End_Distance && clock() - old_time2 > 20000000)
   {
     ROS_WARN("Distance: %f", distBetween);
