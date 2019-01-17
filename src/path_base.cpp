@@ -91,7 +91,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     if (isnan(laser_ranges[i]) || laser_ranges[i] == NAN || isinf(laser_ranges[i]))
     {
       continue;
-    } 
+    }
     tmp_vec.push_back(laser_ranges[i]); // takes the entry from laser_range and puts it at the buttom of tmp_vec vector
     tmp_vec.push_back(laser_angle_min + (laser_angle_inc * i)); // takes the laser_angle increment times i, adds it to the minimum laser angle to find the angle of the current entry and puts it at the bottom of tmp_vec vector
     // taking all the lasers angles and placing them in three arrays which is left, right, or center.
@@ -111,7 +111,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
   //ROS_INFO("lr_pol_right %d", lr_pol_right.size());
   vector<vector<float> > lr_sqr_right = polarToSquare(lr_pol_right);
   //send_markers(lr_sqr_right);
-  if (lr_pol_right.size() != 0) 
+  if (lr_pol_right.size() != 0)
   {
     vector<vector<float> > dir_vectors = dirVectors(lr_sqr_right);
     //ROS_INFO("dir_vectors_size %d", dir_vectors.size());
@@ -131,12 +131,12 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
 
     TBAngle = atan2(averageVector[1], averageVector[0]);
     //ROS_INFO("%f < dw: %f < Distance: %f", Distance_Wall * (1.0 - Percent_Deviation), dw, Distance_Wall * (1.0 + Percent_Deviation) );
-    if (dw > Distance_Wall * (1.0 + Percent_Deviation)) // ser om tb er for tæt på væggen og retter kursen 
+    if (dw > Distance_Wall * (1.0 + Percent_Deviation)) // ser om tb er for tæt på væggen og retter kursen
     {
       TBAngle = TBAngle - 0.2;
       //ROS_WARN("wall to far");
     }
-    else if (dw < Distance_Wall * (1.0 - Percent_Deviation)) // ser om tb er for langt væk fra væggen og retter kursen 
+    else if (dw < Distance_Wall * (1.0 - Percent_Deviation)) // ser om tb er for langt væk fra væggen og retter kursen
     {
       TBAngle = TBAngle + 0.2;
       //ROS_WARN("wall to close");
@@ -164,7 +164,7 @@ void scan_callback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
 vector<vector<float> > mediaVectors(vector<vector<float> > input)
 {
   int size = input.size();
-  float a[size];  
+  float a[size];
   //for every vector it finds the slope y/x=a
   for (int i = 0; i < size; i++)
   {
@@ -176,7 +176,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
     }
     else
     {
-      a[i] = y/x;    
+      a[i] = y/x;
     }
   }
   sort(a, a + size);
@@ -203,9 +203,9 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
   //Finds the number with the biggest amount of hits and assigns it to sorting number.
   float max = 0.0;
   float sortingNumber = 0;
-  for (vector<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+  for (int i=0 ; i<sizes.size();i++)
   {
-    vector<float> index_data = (*it);
+    vector<float> index_data = sizes[i];
     //ROS_INFO("inside: %f", index_data[1]);
     if (index_data[1] > max)
     {
@@ -213,7 +213,7 @@ vector<vector<float> > mediaVectors(vector<vector<float> > input)
       max = index_data[1];
     }
   }
-  
+
   // finds the median and uses it to define an area where the values are acceptable
   //int median = size*(1.0/2.0)-1;
   //float sortingNumber = a[ median ];
@@ -304,7 +304,7 @@ void corner_saver()
   }
   old_time = clock();
 
-  
+
   //ROS_INFO("Time: %ld", old_time);
   // trying to obtain coordinates, if it fails it will just send a warning and wait a second.
   ROS_WARN("Point Saved");
@@ -329,7 +329,7 @@ void checkLap()
   if (distBetween < End_Distance && clock() - old_time2 > 20000000)
   {
     ROS_WARN("Distance: %f", distBetween);
-    dirVectorsPoints (x_y_cords);  
+    dirVectorsPoints (x_y_cords);
     ros::shutdown();
   }
 }
@@ -356,10 +356,6 @@ vector< float > currentPos()
   return TBMarkers;
 }
 
-bool sorting(const std::vector<float>& a, const std::vector<float>& b) 
-{ 
-  return a[1] < b[1]; 
-}
 //Takes a point matrix.
 vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
 {
@@ -368,7 +364,7 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
   dir_vectors = dirVectors(input);
 
   int size = dir_vectors.size();
-  float a[size];  
+  float a[size];
   //for every vector it finds the slope y/x=a
   for (int i = 0; i < size; i++)
   {
@@ -380,54 +376,50 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
     }
     else
     {
-      a[i] = y/x;    
+      a[i] = y/x;
     }
   }
-  
-  list<vector<float> > sizes;
-  vector<float> tempFloat;
-  tempFloat.push_back(a[0]);
-  tempFloat.push_back(0);
-  sizes.push_back(tempFloat);
-  // catagorises vectors into groups with similar slopes
+
+  vector<vector<float> > sizes;
   for ( int i = 0; i < size; i++)
   {
+    vector<float> tempFloat;
+    tempFloat.push_back(a[i]);
+    tempFloat.push_back(0);
+    sizes.push_back(tempFloat);
+
     vector<float> tempVector;
-    bool add = true;
-    for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
+    for (int j = 0; j < sizes.size(); j++)
     {
-      vector<float> index_data = (*it);
-      if ( index_data[0]*(1.0 + Percent_Deviation) > a[i] > index_data[0]*(1.0 - Percent_Deviation ) )
+      vector< float > temps = sizes[j];
+      if ( temps[0]*(1.0 + Percent_Deviation) > a[i] > temps[0]*(1.0 - Percent_Deviation ) )
       {
-        index_data[1] += 1.0;
-        add = false;
+        sizes[j][1] += 1.0;
       }
     }
-    if (add)
+  }
+
+  //Finds the number with the biggest amount of hits and assigns it to sorting number.
+  float max = 0.0;
+  float Number = 0;
+  for (int i=0 ; i<sizes.size();i++)
+  {
+    vector<float> index_data = sizes[i];
+    //ROS_INFO("inside: %f", index_data[1]);
+    if (index_data[1] > max)
     {
-      tempVector.push_back(a[i]);
-      tempVector.push_back(1);
-      sizes.push_back(tempVector);
+      Number = index_data[0];
+      max = index_data[1];
     }
   }
+
+
   //Finds the number with the biggest amount of hits and assigns it to sorting number.
   //float max[4] = {0.0};
   float sortingNumber[4] = {0.0};
-  /*for (list<vector<float> >::iterator it=sizes.begin(); it != sizes.end(); ++it)
-  {
-    vector<float> index_data = (*it);
-    for(int i = 0; i < 4; i++)
-    {
-      if (max[i] < index_data[1])
-      {
-        max[i] = index_data[1];
-        sortingNumber[i] = index_data[0];
-        break;
-      }
-    }
-  }*/
 
-  sizes.sort(sorting);
+
+  sort(sizes.begin(), sizes.end());
   for (int i = 0; i < 4; i++)
   {
     vector< float > index_data = sizes.back();
@@ -435,7 +427,7 @@ vector< vector< float > > dirVectorsPoints(vector< vector< float > > input)
     sortingNumber[i] = index_data[0];
   }
 
-  //Return array, only the vectors with the right slop is being keeped. 
+  //Return array, only the vectors with the right slop is being keeped.
   vector< vector< float > > vector_newest;
   vector< vector< float > > point_newest;
   for (int i = 0; i < 4; i++)
@@ -512,7 +504,7 @@ vector<vector< float > > intersections (vector< vector< float > > input)
       {
         float x = (d-b)/(a-c);
         float y = a*( (d-b)/(a-c) ) + b;
-        
+
         vector< float > tempReturn;
         tempReturn.push_back(x);
         tempReturn.push_back(y);
@@ -525,7 +517,7 @@ vector<vector< float > > intersections (vector< vector< float > > input)
 }
 #pragma region Markers
 //Sets the markers on the map.
-void send_markers(vector<vector<float> > points) 
+void send_markers(vector<vector<float> > points)
 {
   //ROS_WARN("Sending Markers");
   int markers = points.size();
